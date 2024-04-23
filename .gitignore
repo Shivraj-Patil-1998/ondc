@@ -1,0 +1,8 @@
+*.idea*
+.env
+firebase_config.json
+~
+.env-pre-prod
+.env-dev
+data
+.env*

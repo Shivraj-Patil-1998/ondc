@@ -1,0 +1,90 @@
+---
+- name: Update web servers
+  hosts: "{{ target }}"
+  remote_user: "{{ remote_user }}"
+
+  vars_prompt:
+    - name: remote_user
+      prompt: enter the remote host, mostly it will be ubuntu or root
+      private: no
+    - name: target
+      prompt: enter the hostname which you might have mentioned in host file
+      private: no
+
+    - name: domain
+      prompt: please enter the domain which will be serving the requests(eg sellerapp-staging.datasyndicate.in or ref-seller-app-preprod.ondc.org or ref-seller-app-stage.ondc.org, ref-app-seller-dev-internal.ondc.org, seller-app-preprod-v2.ondc.org )
+      private: no
+
+    - name: envtype
+      prompt: please enter the env file to copy, we are appending to .env, hence value can be -staging etc
+      private: no
+
+
+  tasks:
+    - name: Clone seller-app
+      git:
+        repo: "https://github.com/ONDC-Official/seller-app.git"
+        dest: "/home/ubuntu/seller-app"
+        version: "master"
+        force: yes
+
+    - name: Clone seller-app-protocol
+      git:
+        repo: "https://github.com/ONDC-Official/seller-app-protocol.git"
+        dest: "/home/ubuntu/seller-app-protocol"
+        version: "master"
+        force: yes
+
+    - name: Clone seller-app-frontend
+      git:
+        repo: "https://github.com/ONDC-Official/seller-app-frontend.git"
+        dest: "/home/ubuntu/seller-app-frontend"
+        version: "master"
+        force: yes
+
+    - name: Clone seller-app-igm
+      git:
+        repo: "https://github.com/ONDC-Official/seller-app-igm.git"
+        dest: "/home/ubuntu/seller-app-igm"
+        version: "master"
+        force: yes
+
+    - name: Clone seller-bugzilla-service
+      git:
+        repo: "https://github.com/ONDC-Official/seller-bugzilla-service.git"
+        dest: "/home/ubuntu/seller-bugzilla-service"
+        version: "master"
+        force: yes
+
+    - name: Copy docker compose file with domain replaced
+      copy:
+        src: "{{ playbook_dir }}/../docker-compose-with-images.yaml"
+        dest: "/home/ubuntu/docker-compose.yml"
+        owner: "{{ remote_user }}"
+        group: "{{ remote_user }}"
+        mode: "0755"
+
+    - name: copy Dockerfile with ssl as dockerfile in seller-app-frontend
+      copy:
+        src: "{{ playbook_dir }}/../seller-app-frontend/Dockerfile"
+        dest: "/home/ubuntu/seller-app-frontend/Dockerfile"
+        owner: "{{ remote_user }}"
+        group: "{{ remote_user }}"
+        mode: "0755"
+
+    - name: copy nginx conf with ssl
+      copy:
+        src: "{{ playbook_dir }}/../seller-app-frontend/nginx-replace-with-domain.conf"
+        dest: "/home/ubuntu/seller-app-frontend/nginx.conf"
+        owner: "{{ remote_user }}"
+        group: "{{ remote_user }}"
+        mode: "0755"
+
+    - name: replace __domain__ with domain name
+      replace:
+        path: "/home/ubuntu/seller-app-frontend/nginx.conf"
+        regexp: "__domain_name__"
+        replace: "{{ domain }}"
+
+    - name: Run docker compose up
+      shell: "cd /home/ubuntu/ && sudo docker compose build && sudo docker compose up -d"
